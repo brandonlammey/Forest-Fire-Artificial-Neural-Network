@@ -25,10 +25,6 @@ import seaborn as sns
 
 # Importing the dataset
 dataset = pd.read_csv('forestfires.csv')
-#Getting Independent and Dependent(regression and categorical) Features
-X = dataset.iloc[:, 0:12].values # independent: upperbound is excluded 
-y = dataset.iloc[:, 12].values # dependent variable
-
 
 # plot correlation matrix
 corr = dataset.corr()
@@ -36,36 +32,9 @@ fig = plt.figure(figsize = (15,15))
 sns.heatmap(corr, vmax = .75, square = True)
 plt.show()
 
-'''
-Classification
-#Convert to Acres then Classify Size
-Class 1.A - one acre or less;
-Class 2.B - more than one acre, but less than 10 acres;
-Class 3.C - 10 acres or more, but less than 100 acres;
-Class 4.D - 100 acres or more, but less than 300 acres;
-Class 5.E - 300 acres or more, but less than 1,000 acres;
-Class 6.F - 1,000 acres or more, but less than 5,000 acres;
-'''
-y = dataset.iloc[:, 12].values
-for i in range(0, len(y)):
-    y[i] = (y[i]*2.47)
-    if y[i] < 1.0:
-        y[i] = 1
-    elif y[i] < 10.0:
-        y[i] = 2
-    elif y[i] < 100.0:
-        y[i] = 3
-    elif y[i] < 300.0:
-        y[i] = 4
-    elif y[i] < 1000.0:
-        y[i] = 5
-    elif y[i] < 5000.0:
-        y[i] = 6
-    else:
-        y[i] = 7
-    
-
-
+#Getting Independent and Dependent(regression and categorical) Features
+X = dataset.iloc[:, 0:12].values # independent: upperbound is excluded 
+y = dataset.iloc[:, 12].values # dependent variable
 
 # Encoding categorical data for independent variables 
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
@@ -81,22 +50,56 @@ onehotencoder = OneHotEncoder(categorical_features = [13])#dummy variable for we
 X = onehotencoder.fit_transform(X).toarray()
 X = X[:, 1:] #avoid dummy variable trap 
 
+y_class = y
+y_reg = y
+X_class = X
+X_reg = X
+
+'''
+Classification
+#Convert to Acres then Classify Size
+Class 1.A - one acre or less;
+Class 2.B - more than one acre, but less than 10 acres;
+Class 3.C - 10 acres or more, but less than 100 acres;
+Class 4.D - 100 acres or more, but less than 300 acres;
+Class 5.E - 300 acres or more, but less than 1,000 acres;
+Class 6.F - 1,000 acres or more, but less than 5,000 acres;
+'''
+y_class = dataset.iloc[:, 12].values
+for i in range(0, len(y)):
+    y_class[i] = (y_class[i]*2.47)
+    if y_class[i] < 1.0:
+        y_class[i] = 1
+    elif y_class[i] < 10.0:
+        y_class[i] = 2
+    elif y_class[i] < 100.0:
+        y_class[i] = 3
+    elif y_class[i] < 300.0:
+        y_class[i] = 4
+    elif y_class[i] < 1000.0:
+        y_class[i] = 5
+    elif y_class[i] < 5000.0:
+        y_class[i] = 6
+    else:
+        y_class[i] = 7
 
 '''Encoding For Classification'''
 from keras.utils import np_utils
 y = np_utils.to_categorical(y)
 
 
-
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
+X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(X_class, y_class, test_size = 0.2) #classification
+X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(X_reg, y_reg, test_size = 0.2) #regression
 
 # Feature Scaling to optimize 
 from sklearn.preprocessing import StandardScaler
 sc = StandardScaler()
-X_train = sc.fit_transform(X_train)
-X_test = sc.transform(X_test)
+X_train_c = sc.fit_transform(X_train_c)
+X_test_c = sc.transform(X_test_c)
+X_train_r = sc.fit_transform(X_train_r)
+X_test_r = sc.transform(X_test_r)
 
 
 '''
@@ -109,34 +112,32 @@ from keras.models import Sequential #For Initializing ANN
 from keras.layers import Dense #For Layers of ANN
 
 # Initialising the ANN with sequence of layers (Could use a Graph)
-#Classifier Model
-classifier = Sequential() 
+classifier = Sequential()
+regressor = Sequential()
 
 # Adding the input layer and the first hidden layer
 # optimal nodes in hidden layer is art (Tip: choose as avg of input+output)
-#Can use Parameter Tuning 
-classifier.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu', input_dim = 27))
+classifier.add(Dense(units = 17, kernel_initializer = 'uniform', activation = 'relu', input_dim = 27))
+regressor.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu', input_dim = 27))
 
 # Adding the hidden layers
-classifier.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu'))
-classifier.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu'))
+classifier.add(Dense(units = 17, kernel_initializer = 'uniform', activation = 'relu'))
+classifier.add(Dense(units = 17, kernel_initializer = 'uniform', activation = 'relu'))
+regressor.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu'))
+regressor.add(Dense(units = 14, kernel_initializer = 'uniform', activation = 'relu'))
 
 # Adding the output layer
 # Probability for the outcome 
-'''Classification'''
 classifier.add(Dense(units = 7, kernel_initializer = 'uniform', activation = 'softmax'))
-'''Regression'''
-classifier.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'linear'))
+regressor.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'linear'))
 
 # Compiling the ANN
-'''Classification'''
-#Another Option: categorical_crossentropy
 classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-'''Regression'''
-classifier.compile(loss='mse', optimizer='adam', metrics=['mse', 'mae'])
+regressor.compile(loss='mse', optimizer='adam', metrics=['mse', 'mae'])
 
 # Fitting the ANN to the Training set
-classifier.fit(X_train, y_train, batch_size = 5, epochs = 500)
+classifier.fit(X_train_c, y_train_c, batch_size = 5, epochs = 500)
+regressor.fit(X_train_r, y_train_r, batch_size = 5, epochs = 500)
 
 
 
@@ -144,12 +145,13 @@ classifier.fit(X_train, y_train, batch_size = 5, epochs = 500)
     Making predictions and evaluating the model
 '''
 # Predicting the Test set results
-y_pred = classifier.predict(X_test)
+y_pred_c = classifier.predict(X_test_c)
+y_pred_r = classifier.predict(X_test_r)
 
 
 '''Regression'''
-plt.plot(y_test, color = 'red', label = 'Real data')
-plt.plot(y_pred, color = 'blue', label = 'Predicted data')
+plt.plot(y_test_r, color = 'red', label = 'Real data')
+plt.plot(y_pred_r, color = 'blue', label = 'Predicted data')
 plt.title('Regression Predictions')
 plt.legend()
 plt.xlabel('X')
@@ -160,20 +162,17 @@ plt.show()
 '''Classification'''
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-y_pred = (y_pred > 0.5)
 import seaborn as sns
-import matplotlib.pyplot as plt     
-cm = confusion_matrix( y_test.argmax(axis=1), y_pred.argmax(axis=1))
+import matplotlib.pyplot as plt   
+
+y_pred_c = (y_pred_c > 0.5)
+cm = confusion_matrix( y_test_c.argmax(axis=1), y_pred_c.argmax(axis=1))
+
 ax= plt.subplot()
-sns.heatmap(cm, annot=True, ax = ax); #annot=True to annotate cells
-# labels, title and ticks
+sns.heatmap(cm, annot=True, ax = ax);
 ax.set_xlabel('Predicted Labels');ax.set_ylabel('True Labels'); 
 ax.set_title('Classification Confusion Matrix'); 
 ax.xaxis.set_ticklabels(['A','B','C','D','E','F']); ax.yaxis.set_ticklabels(['A','B','C','D','E','F']);
-accuracy = 74/104
-print(accuracy)
-
-
 
 
 
